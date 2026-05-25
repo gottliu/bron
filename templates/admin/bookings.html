@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+{% block title %}Управление бронированиями{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+    <div class="admin-header-content">
+        <h2>Управление бронированиями</h2>
+        <div class="admin-nav">
+            <a href="/admin/dashboard" class="admin-nav-link">Дашборд</a>
+            <a href="/admin/events" class="admin-nav-link">События</a>
+            <a href="/admin/halls" class="admin-nav-link">Залы</a>
+            <a href="/admin/bookings" class="admin-nav-link active">Бронирования</a>
+            <a href="/admin/logout" class="admin-nav-link logout">Выход</a>
+        </div>
+    </div>
+</div>
+
+<div class="admin-section">
+    <div class="section-header">
+        <h3>Все бронирования</h3>
+        <button class="btn btn-secondary" onclick="showFilters()">🔍 Фильтры</button>
+    </div>
+    
+    <!-- Фильтры -->
+    <div id="filters-panel" style="display: none;" class="filters-panel">
+        <div class="filters-form">
+            <div class="form-group">
+                <label>Событие</label>
+                <select id="filter-event">
+                    <option value="">Все события</option>
+                    {% for event in events %}
+                    <option value="{{ event.id }}">{{ event.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Имя клиента</label>
+                <input type="text" id="filter-name" placeholder="Часть имени">
+            </div>
+            
+            <div class="form-group">
+                <label>Email</label>
+                <input type="text" id="filter-email" placeholder="Часть email">
+            </div>
+            
+            <div class="form-actions">
+                <button class="btn btn-primary" onclick="applyFilters()">Применить</button>
+                <button class="btn" onclick="resetFilters()">Сбросить</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Событие</th>
+                    <th>Клиент</th>
+                    <th>Email</th>
+                    <th>Место</th>
+                    <th>Время бронирования</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="bookings-tbody">
+                {% for booking in bookings %}
+                <tr data-booking-id="{{ booking.id }}">
+                    <td>{{ booking.id }}</td>
+                    <td>{{ booking.event.title }}</td>
+                    <td>{{ booking.customer_name }}</td>
+                    <td>{{ booking.customer_email }}</td>
+                    <td>Ряд {{ booking.row }}, Место {{ booking.seat }}</td>
+                    <td>{{ booking.booking_time.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>
+                        <button class="btn-icon delete" onclick="deleteBooking({{ booking.id }})">🗑️</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if not bookings %}
+    <div class="empty-state">
+        <p>Нет бронирований</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.btn-secondary {
+    background: var(--pale-blue);
+    color: var(--text-dark);
+}
+
+.filters-panel {
+    background: var(--soft-white);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.filters-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    align-items: end;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    transition: transform 0.2s;
+}
+
+.btn-icon.delete:hover {
+    color: var(--error);
+    transform: scale(1.1);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-light);
+}
+</style>
+
+<script>
+function showFilters() {
+    const panel = document.getElementById('filters-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+async function applyFilters() {
+    const eventId = document.getElementById('filter-event').value;
+    const customerName = document.getElementById('filter-name').value;
+    const customerEmail = document.getElementById('filter-email').value;
+    
+    try {
+        const response = await fetch('/admin/api/bookings/filter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event_id: eventId || null,
+                customer_name: customerName || null,
+                customer_email: customerEmail || null
+            })
+        });
+        
+        const bookings = await response.json();
+        updateBookingsTable(bookings);
+    } catch (error) {
+        showNotification('Ошибка фильтрации', 'error');
+    }
+}
+
+function resetFilters() {
+    document.getElementById('filter-event').value = '';
+    document.getElementById('filter-name').value = '';
+    document.getElementById('filter-email').value = '';
+    applyFilters();
+}
+
+function updateBookingsTable(bookings) {
+    const tbody = document.getElementById('bookings-tbody');
+    
+    if (bookings.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Нет бронирований</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = bookings.map(booking => `
+        <tr data-booking-id="${booking.id}">
+            <td>${booking.id}</td>
+            <td>${booking.event_title}</td>
+            <td>${booking.customer_name}</td>
+            <td>${booking.customer_email}</td>
+            <td>Ряд ${booking.row}, Место ${booking.seat}</td>
+            <td>${new Date(booking.booking_time).toLocaleString('ru-RU')}</td>
+            <td>
+                <button class="btn-icon delete" onclick="deleteBooking(${booking.id})">🗑️</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function deleteBooking(bookingId) {
+    if (!confirm('Отменить это бронирование? Место станет доступным.')) return;
+    
+    try {
+        const response = await fetch(`/admin/api/bookings/${bookingId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('Бронирование отменено', 'success');
+            // Удаляем строку из таблицы
+            const row = document.querySelector(`tr[data-booking-id="${bookingId}"]`);
+            if (row) row.remove();
+        } else {
+            showNotification(data.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Ошибка при отмене', 'error');
+    }
+}
+
+function showNotification(message, type) {
+    const notification = document.getElementById('notification') || createNotification();
+    notification.textContent = message;
+    notification.className = `notification ${type}`;
+    notification.style.display = 'block';
+    
+    setTimeout(() => {
+        notification.style.display = 'none';
+    }, 3000);
+}
+
+function createNotification() {
+    const div = document.createElement('div');
+    div.id = 'notification';
+    div.className = 'notification';
+    document.body.appendChild(div);
+    return div;
+}
+</script>
+{% endblock %}

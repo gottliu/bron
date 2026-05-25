@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+{% block title %}Управление залами{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+    <div class="admin-header-content">
+        <h2>Управление залами</h2>
+        <div class="admin-nav">
+            <a href="/admin/dashboard" class="admin-nav-link">Дашборд</a>
+            <a href="/admin/events" class="admin-nav-link">События</a>
+            <a href="/admin/halls" class="admin-nav-link active">Залы</a>
+            <a href="/admin/bookings" class="admin-nav-link">Бронирования</a>
+            <a href="/admin/logout" class="admin-nav-link logout">Выход</a>
+        </div>
+    </div>
+</div>
+
+<div class="admin-section">
+    <div class="section-header">
+        <h3>Все залы</h3>
+        <button class="btn btn-primary" onclick="showCreateHallModal()">+ Добавить зал</button>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Название</th>
+                    <th>Ряды</th>
+                    <th>Мест в ряду</th>
+                    <th>Всего мест</th>
+                    <th>Событий</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for hall in halls %}
+                <tr>
+                    <td>{{ hall.id }}</td>
+                    <td>{{ hall.name }}</td>
+                    <td>{{ hall.rows }}</td>
+                    <td>{{ hall.seats_per_row }}</td>
+                    <td>{{ hall.rows * hall.seats_per_row }}</td>
+                    <td>{{ hall.events|length }}</td>
+                    <td>
+                        <button class="btn-icon" onclick="editHall({{ hall.id }})">✏️</button>
+                        <button class="btn-icon delete" onclick="deleteHall({{ hall.id }}, {{ hall.events|length }})">🗑️</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="hall-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="modal-title">Добавить зал</h3>
+        <form id="hall-form">
+            <input type="hidden" id="hall-id">
+            
+            <div class="form-group">
+                <label>Название зала</label>
+                <input type="text" id="hall-name" required placeholder="Например: Большой зал">
+            </div>
+            
+            <div class="form-group">
+                <label>Количество рядов</label>
+                <input type="number" id="hall-rows" required min="1" max="20" value="10">
+            </div>
+            
+            <div class="form-group">
+                <label>Мест в ряду</label>
+                <input type="number" id="hall-seats" required min="1" max="20" value="12">
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn" onclick="closeModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    transition: transform 0.2s;
+}
+
+.btn-icon:hover {
+    transform: scale(1.1);
+}
+
+.btn-icon.delete:hover {
+    color: var(--error);
+}
+</style>
+
+<script>
+function showNotification(message, type) {
+    let notification = document.getElementById('notification');
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'notification';
+        notification.className = 'notification';
+        document.body.appendChild(notification);
+    }
+    notification.textContent = message;
+    notification.className = `notification ${type}`;
+    notification.style.display = 'block';
+    
+    setTimeout(() => {
+        notification.style.display = 'none';
+    }, 3000);
+}
+
+async function deleteHall(hallId, eventsCount) {
+    if (eventsCount > 0) {
+        showNotification('Невозможно удалить зал с существующими событиями', 'error');
+        return;
+    }
+    
+    if (!confirm('Удалить этот зал?')) return;
+    
+    try {
+        const response = await fetch(`/admin/api/halls/${hallId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('Зал удален', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification(data.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Ошибка при удалении', 'error');
+    }
+}
+
+function showCreateHallModal() {
+    document.getElementById('modal-title').textContent = 'Добавить зал';
+    document.getElementById('hall-id').value = '';
+    document.getElementById('hall-name').value = '';
+    document.getElementById('hall-rows').value = '10';
+    document.getElementById('hall-seats').value = '12';
+    document.getElementById('hall-modal').classList.add('active');
+}
+
+async function editHall(hallId) {
+    try {
+        const response = await fetch(`/admin/api/halls/${hallId}`);
+        const hall = await response.json();
+        
+        document.getElementById('modal-title').textContent = 'Редактировать зал';
+        document.getElementById('hall-id').value = hall.id;
+        document.getElementById('hall-name').value = hall.name;
+        document.getElementById('hall-rows').value = hall.rows;
+        document.getElementById('hall-seats').value = hall.seats_per_row;
+        
+        document.getElementById('hall-modal').classList.add('active');
+    } catch (error) {
+        showNotification('Ошибка загрузки зала', 'error');
+    }
+}
+
+document.getElementById('hall-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const hallId = document.getElementById('hall-id').value;
+    const data = {
+        name: document.getElementById('hall-name').value,
+        rows: parseInt(document.getElementById('hall-rows').value),
+        seats_per_row: parseInt(document.getElementById('hall-seats').value)
+    };
+    
+    const url = hallId ? `/admin/api/halls/${hallId}` : '/admin/api/halls';
+    const method = hallId ? 'PUT' : 'POST';
+    
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification(hallId ? 'Зал обновлен' : 'Зал создан', 'success');
+            closeModal();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Ошибка сохранения', 'error');
+    }
+});
+
+function closeModal() {
+    document.getElementById('hall-modal').classList.remove('active');
+}
+</script>
+{% endblock %}

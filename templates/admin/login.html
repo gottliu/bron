@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Вход в админ-панель{% endblock %}
+
+{% block content %}
+<div class="admin-login-container">
+    <div class="admin-login-card">
+        <h2>Вход в админ-панель</h2>
+        <p class="subtitle">Управление бронированиями, событиями и залами</p>
+        
+        <form id="admin-login-form" class="admin-login-form">
+            <div class="form-group">
+                <label for="username">Имя пользователя</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-full">Войти</button>
+        </form>
+        
+        <div class="demo-credentials">
+            <p><strong>Демо-доступ:</strong></p>
+            <p>Логин: <code>admin</code> | Пароль: <code>admin123</code></p>
+        </div>
+    </div>
+</div>
+
+<style>
+.admin-login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 300px);
+}
+
+.admin-login-card {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 450px;
+    width: 100%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.admin-login-card h2 {
+    text-align: center;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+}
+
+.admin-login-card .subtitle {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.demo-credentials {
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--soft-white);
+    border-radius: 10px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.demo-credentials code {
+    background: var(--pale-blue);
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-family: monospace;
+}
+</style>
+
+<script>
+document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    
+    try {
+        const response = await fetch('/admin/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            window.location.href = '/admin/dashboard';
+        } else {
+            showNotification(data.message || 'Ошибка входа', 'error');
+        }
+    } catch (error) {
+        showNotification('Ошибка соединения', 'error');
+    }
+});
+</script>
+{% endblock %}

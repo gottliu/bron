@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - Система бронирования{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Доступные мероприятия</h2>
+    <p class="subtitle">Выберите интересующее вас событие для бронирования мест</p>
+</div>
+
+<div class="events-grid">
+    {% for event in events %}
+    <div class="event-card">
+        <div class="event-type-badge {{ event.event_type }}">
+            {% if event.event_type == 'movie' %}Кинопоказ{% else %}Конференция{% endif %}
+        </div>
+        <h3 class="event-title">{{ event.title }}</h3>
+        <p class="event-description">{{ event.description }}</p>
+        <div class="event-details">
+            <div class="detail-item">
+                <span class="detail-label">Дата и время:</span>
+                <span class="detail-value">{{ event.start_time.strftime('%d.%m.%Y %H:%M') }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Зал:</span>
+                <span class="detail-value">{{ event.hall.name }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Вместимость:</span>
+                <span class="detail-value">{{ event.hall.rows * event.hall.seats_per_row }} мест</span>
+            </div>
+        </div>
+        <a href="{{ url_for('event_detail', event_id=event.id) }}" class="btn btn-primary">
+            Выбрать места
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not events %}
+<div class="empty-state">
+    <p>На данный момент нет доступных мероприятий</p>
+</div>
+{% endif %}
+{% endblock %}

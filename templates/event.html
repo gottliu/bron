@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}{{ event.title }} - Выбор мест{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <a href="{{ url_for('index') }}" class="back-link">← Назад к списку</a>
+    <h2>{{ event.title }}</h2>
+    <p class="subtitle">{{ event.start_time.strftime('%d.%m.%Y %H:%M') }} | {{ event.hall.name }}</p>
+</div>
+
+<div class="booking-container">
+    <div class="hall-section">
+        <div class="screen">Экран / Сцена</div>
+        
+        <div class="hall-grid" id="hall-grid">
+            <!-- Места будут загружены через JavaScript -->
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <span class="seat-indicator available"></span>
+                <span>Свободно</span>
+            </div>
+            <div class="legend-item">
+                <span class="seat-indicator selected"></span>
+                <span>Выбрано вами</span>
+            </div>
+            <div class="legend-item">
+                <span class="seat-indicator locked"></span>
+                <span>Занято временно</span>
+            </div>
+            <div class="legend-item">
+                <span class="seat-indicator booked"></span>
+                <span>Забронировано</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="booking-panel">
+        <h3>Ваш заказ</h3>
+        
+        <div id="selected-seats-list" class="selected-seats-list">
+            <p class="empty-message">Выберите места в зале</p>
+        </div>
+        
+        <div id="timer-container" class="timer-container" style="display: none;">
+            <div class="timer-label">Время на бронирование:</div>
+            <div class="timer" id="timer">5:00</div>
+            <p class="timer-hint">Места будут автоматически освобождены после истечения времени</p>
+        </div>
+        
+        <form id="booking-form" style="display: none;">
+            <div class="form-group">
+                <label for="customer_name">Ваше имя:</label>
+                <input type="text" id="customer_name" name="customer_name" required 
+                       placeholder="Иван Иванов">
+            </div>
+            
+            <div class="form-group">
+                <label for="customer_email">Email:</label>
+                <input type="email" id="customer_email" name="customer_email" required 
+                       placeholder="ivan@example.com">
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-full">
+                Забронировать места
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="notification" class="notification"></div>
+
+<div id="success-modal" class="modal">
+    <div class="modal-content">
+        <h3>Бронирование успешно завершено</h3>
+        <p>Ваши места успешно забронированы. Информация отправлена на указанный email.</p>
+        <button onclick="window.location.href='{{ url_for('index') }}'" class="btn btn-primary">
+            Вернуться на главную
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/booking.js') }}"></script>
+<script>
+    const EVENT_ID = {{ event.id }};
+    const HALL_ROWS = {{ event.hall.rows }};
+    const SEATS_PER_ROW = {{ event.hall.seats_per_row }};
+    const LOCK_TIMEOUT = {{ config.get('LOCK_TIMEOUT', 300) }};
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        initBookingSystem(EVENT_ID, HALL_ROWS, SEATS_PER_ROW, LOCK_TIMEOUT);
+    });
+</script>
+{% endblock %}

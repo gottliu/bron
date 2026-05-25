@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+{% block title %}Управление событиями{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+    <div class="admin-header-content">
+        <h2>Управление событиями</h2>
+        <div class="admin-nav">
+            <a href="/admin/dashboard" class="admin-nav-link">Дашборд</a>
+            <a href="/admin/events" class="admin-nav-link active">События</a>
+            <a href="/admin/halls" class="admin-nav-link">Залы</a>
+            <a href="/admin/bookings" class="admin-nav-link">Бронирования</a>
+            <a href="/admin/logout" class="admin-nav-link logout">Выход</a>
+        </div>
+    </div>
+</div>
+
+<div class="admin-section">
+    <div class="section-header">
+        <h3>Все события</h3>
+        <button class="btn btn-primary" onclick="showCreateEventModal()">+ Добавить событие</button>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Название</th>
+                    <th>Тип</th>
+                    <th>Зал</th>
+                    <th>Дата и время</th>
+                    <th>Бронирований</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in events %}
+                <tr>
+                    <td>{{ event.id }}</td>
+                    <td>{{ event.title }}</td>
+                    <td>
+                        <span class="event-type-badge {{ event.event_type }}">
+                            {{ 'Кинопоказ' if event.event_type == 'movie' else 'Конференция' }}
+                        </span>
+                    </td>
+                    <td>{{ event.hall.name }}</td>
+                    <td>{{ event.start_time.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>{{ event.bookings|length }}</td>
+                    <td>
+                        <button class="btn-icon" onclick="editEvent({{ event.id }})">✏️</button>
+                        <button class="btn-icon delete" onclick="deleteEvent({{ event.id }})">🗑️</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="event-modal" class="modal">
+    <div class="modal-content modal-large">
+        <h3 id="modal-title">Добавить событие</h3>
+        <form id="event-form">
+            <input type="hidden" id="event-id">
+            
+            <div class="form-group">
+                <label>Название</label>
+                <input type="text" id="event-title" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Описание</label>
+                <textarea id="event-description" rows="3"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Тип события</label>
+                <select id="event-type" required>
+                    <option value="movie">Кинопоказ</option>
+                    <option value="conference">Конференция</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Зал</label>
+                <select id="event-hall" required>
+                    {% for hall in halls %}
+                    <option value="{{ hall.id }}">{{ hall.name }} ({{ hall.rows }}×{{ hall.seats_per_row }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Дата и время</label>
+                <input type="datetime-local" id="event-datetime" required>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn" onclick="closeModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 5px;
+    transition: transform 0.2s;
+}
+
+.btn-icon:hover {
+    transform: scale(1.1);
+}
+
+.btn-icon.delete:hover {
+    color: var(--error);
+}
+
+.modal-large {
+    max-width: 600px;
+    width: 90%;
+}
+
+textarea {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: white;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+</style>
+
+<script>
+async function deleteEvent(eventId) {
+    if (!confirm('Удалить это событие? Все связанные бронирования также будут удалены.')) return;
+    
+    try {
+        const response = await fetch(`/admin/api/events/${eventId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('Событие удалено', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification(data.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Ошибка при удалении', 'error');
+    }
+}
+
+function showCreateEventModal() {
+    document.getElementById('modal-title').textContent = 'Добавить событие';
+    document.getElementById('event-id').value = '';
+    document.getElementById('event-title').value = '';
+    document.getElementById('event-description').value = '';
+    document.getElementById('event-type').value = 'movie';
+    document.getElementById('event-datetime').value = '';
+    document.getElementById('event-modal').classList.add('active');
+}
+
+async function editEvent(eventId) {
+    try {
+        const response = await fetch(`/admin/api/events/${eventId}`);
+        const event = await response.json();
+        
+        document.getElementById('modal-title').textContent = 'Редактировать событие';
+        document.getElementById('event-id').value = event.id;
+        document.getElementById('event-title').value = event.title;
+        document.getElementById('event-description').value = event.description;
+        document.getElementById('event-type').value = event.event_type;
+        document.getElementById('event-hall').value = event.hall_id;
+        
+        // Форматируем datetime-local
+        const datetime = new Date(event.start_time);
+        const formatted = datetime.toISOString().slice(0, 16);
+        document.getElementById('event-datetime').value = formatted;
+        
+        document.getElementById('event-modal').classList.add('active');
+    } catch (error) {
+        showNotification('Ошибка загрузки события', 'error');
+    }
+}
+
+document.getElementById('event-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const eventId = document.getElementById('event-id').value;
+    const data = {
+        title: document.getElementById('event-title').value,
+        description: document.getElementById('event-description').value,
+        event_type: document.getElementById('event-type').value,
+        hall_id: parseInt(document.getElementById('event-hall').value),
+        start_time: document.getElementById('event-datetime').value
+    };
+    
+    const url = eventId ? `/admin/api/events/${eventId}` : '/admin/api/events';
+    const method = eventId ? 'PUT' : 'POST';
+    
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification(eventId ? 'Событие обновлено' : 'Событие создано', 'success');
+            closeModal();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification(result.message, 'error');
+        }
+    } catch (error) {
+        showNotification('Ошибка сохранения', 'error');
+    }
+});
+
+function closeModal() {
+    document.getElementById('event-modal').classList.remove('active');
+}
+</script>
+{% endblock %}

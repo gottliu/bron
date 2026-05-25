@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Админ-панель{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+    <div class="admin-header-content">
+        <h2>Админ-панель</h2>
+        <div class="admin-nav">
+            <a href="/admin/dashboard" class="admin-nav-link active">Дашборд</a>
+            <a href="/admin/events" class="admin-nav-link">События</a>
+            <a href="/admin/halls" class="admin-nav-link">Залы</a>
+            <a href="/admin/bookings" class="admin-nav-link">Бронирования</a>
+            <a href="/admin/logout" class="admin-nav-link logout">Выход</a>
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">🎬</div>
+        <div class="stat-info">
+            <h3>{{ stats.total_events }}</h3>
+            <p>Всего событий</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon">💺</div>
+        <div class="stat-info">
+            <h3>{{ stats.total_bookings }}</h3>
+            <p>Всего бронирований</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon">🏛️</div>
+        <div class="stat-info">
+            <h3>{{ stats.total_halls }}</h3>
+            <p>Залы</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-info">
+            <h3>{{ "%.1f"|format(stats.occupancy_rate) }}%</h3>
+            <p>Общая заполняемость</p>
+        </div>
+    </div>
+</div>
+
+<div class="admin-section">
+    <h3>Последние бронирования</h3>
+    <div class="table-responsive">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Событие</th>
+                    <th>Клиент</th>
+                    <th>Место</th>
+                    <th>Время бронирования</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in recent_bookings %}
+                <tr>
+                    <td>{{ booking.event.title }}</td>
+                    <td>{{ booking.customer_name }}<br><small>{{ booking.customer_email }}</small></td>
+                    <td>Ряд {{ booking.row }}, Место {{ booking.seat }}</td>
+                    <td>{{ booking.booking_time.strftime('%d.%m.%Y %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="admin-section">
+    <h3>Популярные события</h3>
+    <div class="popular-events">
+        {% for event in popular_events %}
+        <div class="popular-event-item">
+            <div class="popular-event-info">
+                <strong>{{ event.title }}</strong>
+                <span class="event-type-badge {{ event.event_type }}">
+                    {{ 'Кинопоказ' if event.event_type == 'movie' else 'Конференция' }}
+                </span>
+            </div>
+            <div class="popular-event-stats">
+                <span>{{ event.booking_count }} бронирований</span>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ event.occupancy_percentage }}%"></div>
+                </div>
+                <span>{{ "%.1f"|format(event.occupancy_percentage) }}% заполнено</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
